@@ -1,0 +1,76 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.card {
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.footer {
+    background-color: #f8f9fa;
+    padding: 20px 0;
+    margin-top: 40px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.table {
+    font-size: 14px;
+}
+
+.table th {
+    font-weight: 600;
+    background-color: #f8f9fa;
+}
+
+.quantity-input {
+    width: 70px;
+}
+
+/* Invoice styling */
+.invoice-header {
+    margin-bottom: 20px;
+}
+
+.invoice-title {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.invoice-details {
+    font-size: 14px;
+}
+
+/* Notification badges */
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 10px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 15px;
+    }
+    
+    .table-responsive {
+        font-size: 12px;
+    }
+}

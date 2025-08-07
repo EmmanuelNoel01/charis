@@ -1,0 +1,11 @@
+Name,Description,Batch Number,Quantity,Buying Price,Selling Price,Expiry Date,Minimum Stock Level,Barcode,unit type
+Paracetamol 500mg,Pain relief tablets,BATCH001,100,15.5,25,31/12/2025,10,BAR001,tablet
+Ibuprofen 200mg,Anti-inflammatory pain relief,BATCH002,50,12.75,20,15/06/2026,5,BAR002,tablet
+Amoxicillin 250mg,Antibiotic capsules,BATCH003,30,45,75,30/11/2024,3,BAR003,capsule
+Vitamin C 1000mg,Immune support tablets,BATCH004,200,8.25,15,15/03/2027,20,BAR004,tablet
+Cough Syrup 100ml,Chesty cough relief,BATCH005,15,18.5,30,31/12/2025,2,BAR005,syrup
+Antiseptic Cream 30g,Skin infection treatment,BATCH006,25,22,35,30/09/2025,3,BAR006,cream
+Bandages 10cm x 4m,Wound dressing,BATCH007,40,12,20,01/01/2028,5,BAR007,roll
+Thermometer Digital,Fever measurement,BATCH008,10,150,250,15/05/2030,2,BAR008,pce
+Hand Sanitizer 500ml,Alcohol-based sanitizer,BATCH009,20,35,60,31/08/2026,5,BAR009,bottle
+First Aid Kit,Basic medical supplies,BATCH010,5,450,750,31/12/2027,1,BAR010,kit
