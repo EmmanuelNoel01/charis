@@ -253,8 +253,8 @@ ob_end_flush();
                                     <td><?= htmlspecialchars($p['name']) ?></td>
                                     <td><?= htmlspecialchars($p['batch_number']) ?></td>
                                     <td><?= $p['quantity'] ?></td>
-                                    <td><?= number_format($p['buying_price'], 2) ?></td>
-                                    <td><?= number_format($p['selling_price'], 2) ?></td>
+                                    <td><?= number_format($p['buying_price']) ?></td>
+                                    <td><?= number_format($p['selling_price']) ?></td>
                                     <td><?= date('d/m/Y', strtotime($p['expiry_date'])) ?></td>
                                     <td>
                                         <a href="?action=view&id=<?= $p['id'] ?>" class="btn btn-sm btn-info" title="View">

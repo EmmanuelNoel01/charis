@@ -105,6 +105,13 @@ require_once 'auth.php';
               >
             </li>
           <?php if ($auth->isAdmin()): ?>
+          <li>
+            <a
+              href="/pharmacy_system/system/view_invoice.php"
+              class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'view_invoice.php' ? 'active-link' : '' ?>"
+              ><i class="fa-solid fa-receipt"></i>Products On Invoice</a
+            >
+          </li>
             <li>
               <a
                 href="/pharmacy_system/system/admin.php"

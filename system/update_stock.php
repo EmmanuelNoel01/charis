@@ -183,7 +183,7 @@ ob_end_flush();
             <strong>Address:</strong> <?= $_SESSION['supplier_address'] ?> |
             <strong>Status:</strong> <?= $_SESSION['invoice_status'] ?> |
             <strong>Date:</strong> <?= $_SESSION['invoice_date'] ?> |
-            <strong>Total:</strong> UGX <?= number_format($_SESSION['invoice_total'], 2) ?>
+            <strong>Total:</strong> UGX <?= number_format($_SESSION['invoice_total']) ?>
             <form method="POST" class="d-inline float-end">
                 <button type="submit" name="clear_invoice" class="btn btn-sm btn-danger">End Invoice</button>
             </form>

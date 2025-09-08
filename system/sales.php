@@ -89,7 +89,7 @@ if (!empty($date_filter)) {
                 <tfoot>
                   <tr>
                     <th colspan="3">Total</th>
-                    <th id="saleTotal">0.00</th>
+                    <th id="saleTotal">0</th>
                     <th></th>
                   </tr>
                 </tfoot>
@@ -141,7 +141,7 @@ if (!empty($date_filter)) {
                     </form>
 
                     <div class="table-responsive">
-                        <table class="table table-striped w-100"> <!-- Add w-100 here -->
+                        <table class="table table-striped w-100"> 
                             <thead>
                                 <tr>
                                     <th>Invoice #</th>
@@ -155,7 +155,7 @@ if (!empty($date_filter)) {
                                     <tr>
                                         <td><?= $sale['invoice_number'] ?></td>
                                         <td><?= date('d/m/Y H:i', strtotime($sale['date'])) ?></td>
-                                        <td><?= number_format($sale['total_amount'], 2) ?></td>
+                                        <td><?= number_format($sale['total_amount']) ?></td>
                                         <td>
                                             <a href="invoice.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-info">View</a>
                                         </td>
