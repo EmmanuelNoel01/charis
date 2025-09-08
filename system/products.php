@@ -157,10 +157,6 @@ function renderPagination($current_page, $total_pages, $tab = '')
     return $output;
 }
 
-// $search = $_GET['search'] ?? '';
-// $products = $pharmacy->getProducts($search);
-// $expiring_soon = $pharmacy->getExpiringProducts();
-// $low_stock = $pharmacy->getLowStockProducts();
 ob_end_flush();
 ?>
 <div class="card mb-4">
@@ -224,12 +220,12 @@ ob_end_flush();
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="expiring-tab" data-bs-toggle="tab" data-bs-target="#expiring"
-                    type="button">
+                    type="button" href="#expiring">
                     Expiring Soon
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="low-tab" data-bs-toggle="tab" data-bs-target="#low" type="button">
+                <button class="nav-link" id="low-tab" data-bs-toggle="tab" data-bs-target="#low" type="button" href="#lowstock">
                     Low Stock
                 </button>
             </li>
@@ -357,7 +353,6 @@ ob_end_flush();
     </div>
 </div>
 
-<!-- Import CSV Modal -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">

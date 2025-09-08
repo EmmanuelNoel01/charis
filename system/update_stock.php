@@ -101,7 +101,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)', [
     $total_quantity = $current['quantity'] + (int) $_POST['quantity'];
 
     $db->execute('UPDATE products_pharm 
-    SET batch_number = ?, buying_price = ?, selling_price = ?, expiry_date = ?, barcode = ?, quantity = ?, unit_type = ? 
+    SET batch_number = ?, buying_price = ?, selling_price = ?, expiry_date = ?, barcode = ?, quantity = ?, unit_type = ?, invoice_number = ?  
     WHERE id = ?', [
         $_POST['batch_number'],
         (float) $_POST['buying_price'],
@@ -110,6 +110,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)', [
         $_POST['barcode'],
         $total_quantity,
         $_POST['unit_type'],
+        $invoice_number,
         $product_id
     ]);
     $quantityB = (int) $_POST['quantity'];

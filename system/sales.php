@@ -54,140 +54,167 @@ if (!empty($date_filter)) {
     $recent_sales = $db->fetchAll($query);
 }
 ?>
-
-<div class="row">
-    <div class="col-md-7">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>New Sale</h5>
+<div class="container-fluid d-flex justify-content-center">
+  <div class="row w-100 justify-content-center">
+    <div class="col-12">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5>New Sale</h5>
+        </div>
+        <div class="card-body">
+          <form id="saleForm" method="POST" action="invoice.php">
+            <div class="mb-3">
+              <label class="form-label">Customer Name</label>
+              <input type="text" class="form-control" name="customer_name" placeholder="Type customer name..." required>
             </div>
-            <div class="card-body">
-                <form id="saleForm" method="POST" action="invoice.php">
-                    <div class="mb-3">
-                        <label class="form-label">Customer Name</label>
-                        <input type="text" class="form-control" name="customer_name" placeholder="Type customer name..."
-                            required>
-                    </div>
 
-                    <div class="mb-3 position-relative">
-                        <label class="form-label">Search Product</label>
-                        <input type="text" id="productSearch" class="form-control" placeholder="Type product name...">
-                        <div id="suggestions" class="list-group position-absolute w-100" style="z-index: 1000;"></div>
-                    </div>
+            <div class="mb-3 position-relative">
+              <label class="form-label">Search Product</label>
+              <input type="text" id="productSearch" class="form-control" placeholder="Type product name...">
+              <div id="suggestions" class="list-group position-absolute w-100" style="z-index: 1000;"></div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-striped w-100"> <!-- Add w-100 here -->
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="saleItems"></tbody>
+                <tfoot>
+                  <tr>
+                    <th colspan="3">Total</th>
+                    <th id="saleTotal">0.00</th>
+                    <th></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Payment Method</label>
+              <select class="form-select" name="payment_method" required>
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="mobile_money">Mobile Money</option>
+              </select>
+            </div>
+
+            <button type="submit" name="invoice" class="btn btn-success w-100">Process Sale</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<hr>
+
+                <div class="card-header">
+                    <h5>Recent Sales</h5>
+                </div>
+<div class="container-fluid d-flex justify-content-center">
+    <div class="row w-100 justify-content-center">
+        <div class="col-12"> 
+            <div class="card">
+                <!-- <div class="card-header">
+                    <h5>Recent Sales</h5>
+                </div> -->
+                <div class="card-body">
+
+                    <form method="GET" class="row g-2 mb-3">
+                        <div class="col-4">
+                            <input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>"
+                                class="form-control" required>
+                        </div>
+                        <div class="col-4">
+                            <input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>"
+                                class="form-control" required>
+                        </div>
+                        <div class="col-3">
+                            <button type="submit" class="btn btn-success w-100 h-100">Filter</button>
+                        </div>
+                    </form>
 
                     <div class="table-responsive">
-                        <table class="table table-striped">
+                        <table class="table table-striped w-100"> <!-- Add w-100 here -->
                             <thead>
                                 <tr>
-                                    <th>Product</th>
-                                    <th>Price</th>
-                                    <th>Quantity</th>
-                                    <th>Total</th>
+                                    <th>Invoice #</th>
+                                    <th>Date</th>
+                                    <th>Amount</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="saleItems"></tbody>
-                            <tfoot>
-                                <tr>
-                                    <th colspan="3">Total</th>
-                                    <th id="saleTotal">0.00</th>
-                                    <th></th>
-                                </tr>
-                            </tfoot>
+                            <tbody>
+                                <?php foreach ($recent_sales as $sale): ?>
+                                    <tr>
+                                        <td><?= $sale['invoice_number'] ?></td>
+                                        <td><?= date('d/m/Y H:i', strtotime($sale['date'])) ?></td>
+                                        <td><?= number_format($sale['total_amount'], 2) ?></td>
+                                        <td>
+                                            <a href="invoice.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-info">View</a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
                         </table>
                     </div>
+                    <?php if ($total_pages > 1): ?>
+                        <nav>
+                            <ul class="pagination justify-content-center mt-3">
+                                <?php if ($page > 1): ?>
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                            href="?page=<?= $page - 1 ?>&start_date=<?= $start_date ?>&end_date=<?= $end_date ?>">Previous</a>
+                                    </li>
+                                <?php endif; ?>
 
-                    <div class="mb-3">
-                        <label class="form-label">Payment Method</label>
-                        <select class="form-select" name="payment_method" required>
-                            <option value="cash">Cash</option>
-                            <option value="card">Card</option>
-                            <option value="mobile_money">Mobile Money</option>
-                        </select>
-                    </div>
+                                <?php
+                                $range = ($total_pages > 1000) ? 0 : (($total_pages > 100) ? 1 : 2);
+                                $start = max(1, $page - $range);
+                                $end = min($total_pages, $page + $range);
 
-                    <button type="submit" name="invoice" class="btn btn-success w-100">Process Sale</button>
-                </form>
-            </div>
-        </div>
-    </div>
+                                if ($start > 1) {
+                                    echo '<li class="page-item"><a class="page-link" href="?page=1&start_date=' . $start_date . '&end_date=' . $end_date . '">1</a></li>';
+                                    if ($start > 2) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                }
 
-    <div class="col-md-5">
-        <div class="card">
-            <div class="card-header">
-                <h5>Recent Sales</h5>
-            </div>
-            <div class="card-body">
+                                for ($i = $start; $i <= $end; $i++) {
+                                    $active = ($i == $page) ? 'active' : '';
+                                    echo '<li class="page-item ' . $active . '">
+                          <a class="page-link" href="?page=' . $i . '&start_date=' . $start_date . '&end_date=' . $end_date . '">' . $i . '</a>
+                      </li>';
+                                }
 
-                <form method="GET" class="row g-2 mb-3">
-                    <div class="col-4">
-                        <input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>"
-                            class="form-control" required>
-                    </div>
-                    <div class="col-4">
-                        <input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>"
-                            class="form-control" required>
-                    </div>
-                    <div class="col-3">
-                        <button type="submit" class="btn btn-success w-100 h-100">Filter</button>
-                    </div>
-                </form>
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Invoice #</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($recent_sales as $sale): ?>
-                                <tr>
-                                    <td><?= $sale['invoice_number'] ?></td>
-                                    <td><?= date('d/m/Y H:i', strtotime($sale['date'])) ?></td>
-                                    <td><?= number_format($sale['total_amount'], 2) ?></td>
-                                    <td>
-                                        <a href="invoice.php?id=<?= $sale['id'] ?>" class="btn btn-sm btn-info">View</a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                                if ($end < $total_pages) {
+                                    if ($end < $total_pages - 1) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                    echo '<li class="page-item"><a class="page-link" href="?page=' . $total_pages . '&start_date=' . $start_date . '&end_date=' . $end_date . '">' . $total_pages . '</a></li>';
+                                }
+                                ?>
+
+                                <?php if ($page < $total_pages): ?>
+                                    <li class="page-item">
+                                        <a class="page-link"
+                                            href="?page=<?= $page + 1 ?>&start_date=<?= $start_date ?>&end_date=<?= $end_date ?>">Next</a>
+                                    </li>
+                                <?php endif; ?>
+                            </ul>
+                        </nav>
+                    <?php endif; ?>
                 </div>
-
-                <?php if ($total_pages > 1): ?>
-                    <nav>
-                        <ul class="pagination justify-content-center mt-3">
-                            <?php if ($page > 1): ?>
-                                <li class="page-item">
-                                    <a class="page-link"
-                                        href="?page=<?= $page - 1 ?>&start_date=<?= $start_date ?>&end_date=<?= $end_date ?>">Previous</a>
-                                </li>
-                            <?php endif; ?>
-
-                            <?php for ($i = 1; $i <= $total_pages; $i++): ?>
-                                <li class="page-item <?= ($page == $i) ? 'active' : '' ?>">
-                                    <a class="page-link"
-                                        href="?page=<?= $i ?>&start_date=<?= $start_date ?>&end_date=<?= $end_date ?>"><?= $i ?></a>
-                                </li>
-                            <?php endfor; ?>
-
-                            <?php if ($page < $total_pages): ?>
-                                <li class="page-item">
-                                    <a class="page-link"
-                                        href="?page=<?= $page + 1 ?>&start_date=<?= $start_date ?>&end_date=<?= $end_date ?>">Next</a>
-                                </li>
-                            <?php endif; ?>
-                        </ul>
-                    </nav>
-                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
-
 
 <script>
     const productSearch = document.getElementById('productSearch');

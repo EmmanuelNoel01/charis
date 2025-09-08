@@ -54,7 +54,7 @@ function checkExpiringProducts($db) {
         
         if (!$exists[0]['COUNT(*)']) {
             $notification = [
-                'user_id' => 1, // Admin
+                'user_id' => 1, 
                 'title' => 'Product Expiring Soon',
                 'message' => $product['name'] . ' (Batch: ' . $product['batch_number'] . ') expires on ' . $product['expiry_date'],
                 'type' => 'expiry',
