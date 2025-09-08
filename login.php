@@ -39,9 +39,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta property="og:type" content="Website">
     <!-- <link rel="shortcut icon" href="assets/images/favicon.svg"> -->
 
-    <!-- *************
-            ************ CSS Files *************
-        ************* -->
     <link rel="stylesheet" href="assets/fonts/remix/remixicon.css">
     <link rel="stylesheet" href="assets/css/main.min.css">
 
