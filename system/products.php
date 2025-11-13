@@ -125,34 +125,79 @@ if (in_array($action, ['view', 'edit']) && $product_id) {
     }
 }
 
-$limit = 10;
+$limit = 12;
 $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $page = max($page, 1);
 $offset = ($page - 1) * $limit;
 
-$total_all = $pharmacy->countAllProducts($_GET['search'] ?? '');
-$total_expiring = $pharmacy->countExpiringProducts();
-$total_low = $pharmacy->countLowStockProducts();
-
-$total_pages_all = ceil($total_all / $limit);
-$total_pages_expiring = ceil($total_expiring / $limit);
-$total_pages_low = ceil($total_low / $limit);
-
 $search = $_GET['search'] ?? '';
-$products = $pharmacy->getProducts($search, $limit, $offset);
-$expiring_soon = $pharmacy->getExpiringProducts($limit, $offset);
-$low_stock = $pharmacy->getLowStockProducts($limit, $offset);
+$active_tab = $_GET['tab'] ?? 'all'; // Get active tab from URL
+
+// Get products based on active tab and search
+switch ($active_tab) {
+    case 'expiring':
+        $total = $pharmacy->countExpiringProducts($search);
+        $products = $pharmacy->getExpiringProducts($search, $limit, $offset);
+        $total_pages = ceil($total / $limit);
+        break;
+    case 'low':
+        $total = $pharmacy->countLowStockProducts($search);
+        $products = $pharmacy->getLowStockProducts($search, $limit, $offset);
+        $total_pages = ceil($total / $limit);
+        break;
+    default:
+        $total = $pharmacy->countAllProducts($search);
+        $products = $pharmacy->getProducts($search, $limit, $offset);
+        $total_pages = ceil($total / $limit);
+        break;
+}
 
 function renderPagination($current_page, $total_pages, $tab = '')
 {
-    $output = '<nav><ul class="pagination">';
-    for ($i = 1; $i <= $total_pages; $i++) {
+    if ($total_pages <= 1) return '';
+
+    $output = '<nav><ul class="pagination justify-content-center">';
+
+    // Previous button
+    if ($current_page > 1) {
+        $prev_page = $current_page - 1;
+        $url = '?page=' . $prev_page . ($tab ? '&tab=' . $tab : '');
+        $output .= "<li class='page-item'><a class='page-link' href='$url'>&laquo;</a></li>";
+    }
+
+    // Always show first page
+    if ($current_page > 3) {
+        $url = '?page=1' . ($tab ? '&tab=' . $tab : '');
+        $output .= "<li class='page-item'><a class='page-link' href='$url'>1</a></li>";
+        if ($current_page > 4)
+            $output .= "<li class='page-item disabled'><span class='page-link'>...</span></li>";
+    }
+
+    // Pages around current page
+    $start = max(1, $current_page - 2);
+    $end = min($total_pages, $current_page + 2);
+
+    for ($i = $start; $i <= $end; $i++) {
         $active = $i === $current_page ? ' active' : '';
-        $url = '?page=' . $i;
-        if ($tab)
-            $url .= '#' . $tab;
+        $url = '?page=' . $i . ($tab ? '&tab=' . $tab : '');
         $output .= "<li class='page-item$active'><a class='page-link' href='$url'>$i</a></li>";
     }
+
+    // Always show last page
+    if ($current_page < $total_pages - 2) {
+        if ($current_page < $total_pages - 3)
+            $output .= "<li class='page-item disabled'><span class='page-link'>...</span></li>";
+        $url = '?page=' . $total_pages . ($tab ? '&tab=' . $tab : '');
+        $output .= "<li class='page-item'><a class='page-link' href='$url'>$total_pages</a></li>";
+    }
+
+    // Next button
+    if ($current_page < $total_pages) {
+        $next_page = $current_page + 1;
+        $url = '?page=' . $next_page . ($tab ? '&tab=' . $tab : '');
+        $output .= "<li class='page-item'><a class='page-link' href='$url'>&raquo;</a></li>";
+    }
+
     $output .= '</ul></nav>';
     return $output;
 }
@@ -206,6 +251,7 @@ ob_end_flush();
             <div class="input-group">
                 <input type="text" class="form-control" name="search" placeholder="Search products..."
                     value="<?= htmlspecialchars($search) ?>">
+                <input type="hidden" name="tab" value="<?= htmlspecialchars($active_tab) ?>">
                 <button class="btn btn-outline-secondary" type="submit">
                     <i class="fas fa-search"></i> Search
                 </button>
@@ -214,25 +260,27 @@ ob_end_flush();
 
         <ul class="nav nav-tabs" id="productTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button">
+                <a class="nav-link <?= $active_tab === 'all' ? 'active' : '' ?>" 
+                   href="?tab=all">
                     All Products
-                </button>
+                </a>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="expiring-tab" data-bs-toggle="tab" data-bs-target="#expiring"
-                    type="button" href="#expiring">
+                <a class="nav-link <?= $active_tab === 'expiring' ? 'active' : '' ?>" 
+                   href="?tab=expiring">
                     Expiring Soon
-                </button>
+                </a>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="low-tab" data-bs-toggle="tab" data-bs-target="#low" type="button" href="#lowstock">
+                <a class="nav-link <?= $active_tab === 'low' ? 'active' : '' ?>" 
+                   href="?tab=low">
                     Low Stock
-                </button>
+                </a>
             </li>
         </ul>
 
         <div class="tab-content p-3 border border-top-0 rounded-bottom">
-            <div class="tab-pane fade show active" id="all" role="tabpanel">
+            <div class="tab-pane fade <?= $active_tab === 'all' ? 'show active' : '' ?>" id="all" role="tabpanel">
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -247,38 +295,42 @@ ob_end_flush();
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($products as $p): ?>
-                                <tr class="<?= $p['quantity'] <= $p['minimum_stock_level'] ? 'table-warning' : '' ?>
-                                <?= (strtotime($p['expiry_date']) - time()) < (30 * 86400) ? 'table-danger' : '' ?>">
-                                    <td><?= htmlspecialchars($p['name']) ?></td>
-                                    <td><?= htmlspecialchars($p['batch_number']) ?></td>
-                                    <td><?= $p['quantity'] ?></td>
-                                    <td><?= number_format($p['buying_price']) ?></td>
-                                    <td><?= number_format($p['selling_price']) ?></td>
-                                    <td><?= date('d/m/Y', strtotime($p['expiry_date'])) ?></td>
-                                    <td>
-                                        <a href="?action=view&id=<?= $p['id'] ?>" class="btn btn-sm btn-info" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="?action=edit&id=<?= $p['id'] ?>" class="btn btn-sm btn-warning"
-                                            title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="?action=delete&id=<?= $p['id'] ?>" class="btn btn-sm btn-danger"
-                                            onclick="return confirm('Are you sure you want to delete this product and all related data?')"
-                                            title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
+                            <?php if ($active_tab === 'all'): ?>
+                                <?php foreach ($products as $p): ?>
+                                    <tr class="<?= $p['quantity'] <= $p['minimum_stock_level'] ? 'table-warning' : '' ?>
+                                    <?= (strtotime($p['expiry_date']) - time()) < (30 * 86400) ? 'table-danger' : '' ?>">
+                                        <td><?= htmlspecialchars($p['name']) ?></td>
+                                        <td><?= htmlspecialchars($p['batch_number']) ?></td>
+                                        <td><?= $p['quantity'] ?></td>
+                                        <td><?= number_format($p['buying_price']) ?></td>
+                                        <td><?= number_format($p['selling_price']) ?></td>
+                                        <td><?= date('d/m/Y', strtotime($p['expiry_date'])) ?></td>
+                                        <td>
+                                            <a href="?action=view&id=<?= $p['id'] ?>" class="btn btn-sm btn-info" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="?action=edit&id=<?= $p['id'] ?>" class="btn btn-sm btn-warning"
+                                                title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="?action=delete&id=<?= $p['id'] ?>" class="btn btn-sm btn-danger"
+                                                onclick="return confirm('Are you sure you want to delete this product and all related data?')"
+                                                title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
-                    <?= renderPagination($page, $total_pages_all, 'all') ?>
+                    <?php if ($active_tab === 'all'): ?>
+                        <?= renderPagination($page, $total_pages, 'all') ?>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="expiring" role="tabpanel">
+            <div class="tab-pane fade <?= $active_tab === 'expiring' ? 'show active' : '' ?>" id="expiring" role="tabpanel">
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -292,27 +344,31 @@ ob_end_flush();
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($expiring_soon as $p): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($p['name']) ?></td>
-                                    <td><?= htmlspecialchars($p['batch_number']) ?></td>
-                                    <td><?= $p['quantity'] ?></td>
-                                    <td><?= date('d/m/Y', strtotime($p['expiry_date'])) ?></td>
-                                    <td><?= floor((strtotime($p['expiry_date']) - time()) / 86400) ?></td>
-                                    <td>
-                                        <a href="?action=view&id=<?= $p['id'] ?>" class="btn btn-sm btn-info" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
+                            <?php if ($active_tab === 'expiring'): ?>
+                                <?php foreach ($products as $p): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($p['name']) ?></td>
+                                        <td><?= htmlspecialchars($p['batch_number']) ?></td>
+                                        <td><?= $p['quantity'] ?></td>
+                                        <td><?= date('d/m/Y', strtotime($p['expiry_date'])) ?></td>
+                                        <td><?= floor((strtotime($p['expiry_date']) - time()) / 86400) ?></td>
+                                        <td>
+                                            <a href="?action=view&id=<?= $p['id'] ?>" class="btn btn-sm btn-info" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
-                    <?= renderPagination($page, $total_pages_expiring, 'expiring') ?>
+                    <?php if ($active_tab === 'expiring'): ?>
+                        <?= renderPagination($page, $total_pages, 'expiring') ?>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="low" role="tabpanel">
+            <div class="tab-pane fade <?= $active_tab === 'low' ? 'show active' : '' ?>" id="low" role="tabpanel">
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -326,33 +382,38 @@ ob_end_flush();
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($low_stock as $p): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($p['name']) ?></td>
-                                    <td><?= htmlspecialchars($p['batch_number']) ?></td>
-                                    <td><?= $p['quantity'] ?></td>
-                                    <td><?= $p['minimum_stock_level'] ?></td>
-                                    <td><?= $p['quantity'] - $p['minimum_stock_level'] ?></td>
-                                    <td>
-                                        <a href="?action=view&id=<?= $p['id'] ?>" class="btn btn-sm btn-info" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="?action=edit&id=<?= $p['id'] ?>" class="btn btn-sm btn-warning"
-                                            title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
+                            <?php if ($active_tab === 'low'): ?>
+                                <?php foreach ($products as $p): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($p['name']) ?></td>
+                                        <td><?= htmlspecialchars($p['batch_number']) ?></td>
+                                        <td><?= $p['quantity'] ?></td>
+                                        <td><?= $p['minimum_stock_level'] ?></td>
+                                        <td><?= $p['minimum_stock_level'] - $p['quantity']?></td>
+                                        <td>
+                                            <a href="?action=view&id=<?= $p['id'] ?>" class="btn btn-sm btn-info" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="?action=edit&id=<?= $p['id'] ?>" class="btn btn-sm btn-warning"
+                                                title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
-                    <?= renderPagination($page, $total_pages_low, 'low') ?>
+                    <?php if ($active_tab === 'low'): ?>
+                        <?= renderPagination($page, $total_pages, 'low') ?>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Rest of your code remains the same -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -393,6 +454,7 @@ ob_end_flush();
 </div>
 
 <?php if ($action === 'add' || $action === 'edit'): ?>
+    <!-- Your existing add/edit form code remains the same -->
     <?php
     $editing = ($action === 'edit');
     $p = $editing ? $product : [

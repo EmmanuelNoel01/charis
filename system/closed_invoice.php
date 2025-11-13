@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['invoice'])) {
 
     try {
         $user_id = $_SESSION['user_id'];
-        $invoice_number = 'CHARIS-' . time();
+        $invoice_number = 'INV' . time();
         $date = date('Y-m-d H:i:s');
         $total_amount = 0;
 
@@ -91,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['invoice'])) {
         $db->rollback();
         die("Sale processing failed: " . $e->getMessage());
     }
+    
 }
 
 if (!isset($_GET['id'])) {
@@ -164,7 +165,7 @@ ob_end_flush();
             <div class="col-md-6 text-end">
                 <p>
                     Invoice:  <?= htmlspecialchars($sale['invoice_number']) ?><br>
-                    Date: <span id="saleDate"></span><br>
+                    Date: <?= date('d/m/Y H:i', strtotime($sale['date'])) ?><br>
                     Pharmacist: <?= htmlspecialchars($sale['username']) ?>
                 </p>
             </div>
@@ -194,15 +195,15 @@ ob_end_flush();
                             <td><?= $index + 1 ?></td>
                             <td><?= htmlspecialchars($item['name']) ?></td>
                             <td><?= $item['quantity'] ?></td>
-                            <td><?= number_format($item['price']) ?></td>
-                            <td><?= number_format($item['total']) ?></td>
+                            <td><?= number_format($item['price'], 2) ?></td>
+                            <td><?= number_format($item['total'], 2) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
                     <tr>
                         <th colspan="4" class="text-end">Subtotal:</th>
-                        <th><?= number_format($sale['total_amount']) ?></th>
+                        <th><?= number_format($sale['total_amount'], 2) ?></th>
                     </tr>
                     <tr>
                         <th colspan="4" class="text-end">Tax (0%):</th>
@@ -240,14 +241,4 @@ ob_end_flush();
             window.location.href = 'sales.php';
         }, 2000);
     });
-
-    //USED TO GET THE DATE FOR THE INVOICE
-    const now = new Date();
-    const formatted = String(now.getDate()).padStart(2, '0') + '/' +
-        String(now.getMonth() + 1).padStart(2, '0') + '/' +
-        now.getFullYear() + ' ' +
-        String(now.getHours()).padStart(2, '0') + ':' +
-        String(now.getMinutes()).padStart(2, '0');
-
-    document.getElementById('saleDate').textContent = formatted;
 </script>

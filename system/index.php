@@ -2,6 +2,7 @@
 require_once '../includes/header.php';
 require_once '../includes/functions.php';
 require_once '../includes/auth.php';
+require_once '../classes/Pharmacy.php';
 
 checkExpiringProducts($db);
 checkLowStockProducts($db);
@@ -23,6 +24,57 @@ $product_count = $db->query("SELECT COUNT(*) as count FROM products_pharm")[0]['
 $today_sales = $db->query("SELECT SUM(total_amount) as total FROM sales_pharm WHERE DATE(date) = CURDATE()")[0]['total'] ?? 0;
 $low_stock = $db->query("SELECT COUNT(*) as count FROM products_pharm WHERE quantity <= minimum_stock_level")[0]['count'];
 $expiring = $db->query("SELECT COUNT(*) as count FROM products_pharm WHERE expiry_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 30 DAY)")[0]['count'];
+
+$pharmacy = new Pharmacy($db);
+// Call this function periodically (maybe in a cron job or when accessing dashboard)
+
+
+// Then fetch notifications for display
+$notifications = $db->query("
+    SELECT * FROM drug_notifications 
+    WHERE is_read = FALSE 
+    ORDER BY 
+        FIELD(priority, 'high', 'medium', 'low'),
+        created_at DESC
+    LIMIT 20
+");
+
+
+
+// Get notifications for the dashboard
+$expiring_notifications = $pharmacy->getExpiringDrugsNotifications($db, 30);
+$low_stock_notifications = $pharmacy->getLowStockNotifications($db);
+
+// Combine all notifications
+$all_notifications = array_merge($expiring_notifications, $low_stock_notifications);
+
+// Sort notifications by priority (high first)
+usort($all_notifications, function ($a, $b) {
+    $priority_order = ['high' => 3, 'medium' => 2, 'low' => 1];
+    return $priority_order[$b['priority']] - $priority_order[$a['priority']];
+});
+
+// Generate notifications (with check to avoid running too frequently)
+$lastNotificationUpdate = $_SESSION['last_notification_update'] ?? 0;
+if (time() - $lastNotificationUpdate > 300) { // Update every 5 minutes
+    $pharmacy->generateDrugNotifications();
+    $_SESSION['last_notification_update'] = time();
+}
+
+// Get unread notifications
+$notifications = $db->query("
+    SELECT * FROM drug_notifications 
+    WHERE is_read = FALSE 
+    ORDER BY 
+        FIELD(priority, 'high', 'medium', 'low'),
+        created_at DESC
+    LIMIT 10
+");
+
+// Count by priority
+$high_priority = $db->query("SELECT COUNT(*) as count FROM drug_notifications WHERE is_read = FALSE AND priority = 'high'")[0]['count'];
+$medium_priority = $db->query("SELECT COUNT(*) as count FROM drug_notifications WHERE is_read = FALSE AND priority = 'medium'")[0]['count'];
+$low_priority = $db->query("SELECT COUNT(*) as count FROM drug_notifications WHERE is_read = FALSE AND priority = 'low'")[0]['count'];
 ?>
 
 <div id="loading-wrapper">
@@ -135,7 +187,7 @@ $expiring = $db->query("SELECT COUNT(*) as count FROM products_pharm WHERE expir
                             </div>
                         </div>
                         <div class="d-flex flex-column">
-                            <h2 class="lh-1">UGX. <?= number_format($today_sales) ?></h2>
+                            <!-- <h2 class="lh-1">UGX. <?= number_format($today_sales) ?></h2> -->
                             <p class="m-0">Today's Sales</p>
                         </div>
                     </div>
@@ -169,10 +221,10 @@ $expiring = $db->query("SELECT COUNT(*) as count FROM products_pharm WHERE expir
                             <table class="table table-hover">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Invoice #</th>
+                                        <th>Invoice </th>
                                         <th>Date</th>
-                                        <th>Amount</th>
-                                        <th>Action</th>
+                                            <th>Amount</th>
+                                            <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -180,11 +232,12 @@ $expiring = $db->query("SELECT COUNT(*) as count FROM products_pharm WHERE expir
                                         <tr>
                                             <td><?= htmlspecialchars($sale['invoice_number']) ?></td>
                                             <td><?= date('d/m/Y H:i', strtotime($sale['date'])) ?></td>
-                                            <td><?= number_format($sale['total_amount'], 2) ?></td>
-                                            <td>
-                                                <a href="invoice.php?id=<?= $sale['id'] ?>"
-                                                    class="btn btn-sm btn-outline-info">View</a>
-                                            </td>
+
+                                                <td><?= number_format($sale['total_amount']) ?></td>
+                                                <td>
+                                                    <a href="closed_invoice.php?id=<?= $sale['id'] ?>"
+                                                        class="btn btn-sm btn-outline-info">View</a>
+                                                </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -198,32 +251,102 @@ $expiring = $db->query("SELECT COUNT(*) as count FROM products_pharm WHERE expir
         </div>
         <div class="col-md-6">
             <div class="card mb-4">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">Notifications</h5>
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Drug Alerts</h5>
+                    <?php if (count($notifications) > 0): ?>
+                        <span class="badge bg-danger"><?= count($notifications) ?></span>
+                    <?php endif; ?>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <?php if (count($notifications)): ?>
-                        <div class="list-group">
+                        <div class="list-group list-group-flush">
                             <?php foreach ($notifications as $notification): ?>
-                                <a href="#"
-                                    class="list-group-item list-group-item-action <?= $notification['is_read'] ? '' : 'list-group-item-primary' ?>">
-                                    <div class="d-flex justify-content-between">
-                                        <h6 class="mb-1"><?= htmlspecialchars($notification['title']) ?></h6>
-                                        <small><?= time_elapsed_string($notification['created_at']) ?></small>
+                                <div class="list-group-item <?=
+                                    $notification['priority'] === 'high' ? 'list-group-item-danger' :
+                                    ($notification['priority'] === 'medium' ? 'list-group-item-warning' : 'list-group-item-info')
+                                    ?>">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <?php if ($notification['priority'] === 'high'): ?>
+                                                    <i class="fas fa-exclamation-triangle text-danger"></i>
+                                                <?php elseif ($notification['priority'] === 'medium'): ?>
+                                                    <i class="fas fa-exclamation-circle text-warning"></i>
+                                                <?php else: ?>
+                                                    <i class="fas fa-info-circle text-info"></i>
+                                                <?php endif; ?>
+                                                <?= htmlspecialchars($notification['title']) ?>
+                                            </h6>
+                                            <p class="mb-1 small"><?= htmlspecialchars($notification['message']) ?></p>
+
+                                            <?php if ($notification['notification_type'] === 'expiry' && $notification['days_left']): ?>
+                                                <div class="mt-2">
+                                                    <small class="text-muted">
+                                                        <strong>Days until expiry:</strong>
+                                                        <span
+                                                            class="<?= $notification['days_left'] <= 7 ? 'text-danger fw-bold' : 'text-warning' ?>">
+                                                            <?= $notification['days_left'] ?> days
+                                                        </span>
+                                                    </small>
+                                                </div>
+                                            <?php endif; ?>
+
+                                            <?php if ($notification['notification_type'] === 'low_stock' && $notification['current_stock']): ?>
+                                                <div class="mt-2">
+                                                    <small class="text-muted">
+                                                        <strong>Stock level:</strong>
+                                                        <span
+                                                            class="<?= $notification['current_stock'] <= ($notification['minimum_required'] * 0.1) ? 'text-danger fw-bold' : 'text-warning' ?>">
+                                                            <?= $notification['current_stock'] ?>/<?= $notification['minimum_required'] ?>
+                                                        </span>
+                                                    </small>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="ms-2">
+                                            <a href="products.php?tab=<?= $notification['notification_type'] === 'expiry' ? 'expiring' : 'low' ?>"
+                                                class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-secondary mark-read"
+                                                data-id="<?= $notification['id'] ?>">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <p class="mb-1"><?= htmlspecialchars($notification['message']) ?></p>
-                                </a>
+                                </div>
                             <?php endforeach; ?>
                         </div>
                     <?php else: ?>
-                        <p class="text-muted">No notifications available.</p>
+                        <div class="text-center p-4">
+                            <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                            <p class="text-muted mb-0">All drugs are properly stocked</p>
+                            <p class="text-muted small">No expiring or low stock alerts</p>
+                        </div>
                     <?php endif; ?>
                 </div>
+                <?php if (count($notifications) > 0): ?>
+                    <div class="card-footer bg-light">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <span class="badge bg-danger"><?= $high_priority ?></span>
+                                <small class="text-muted d-block">Critical</small>
+                            </div>
+                            <div class="col-4">
+                                <span class="badge bg-warning"><?= $medium_priority ?></span>
+                                <small class="text-muted d-block">Warning</small>
+                            </div>
+                            <div class="col-4">
+                                <span class="badge bg-info"><?= $low_priority ?></span>
+                                <small class="text-muted d-block">Info</small>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
-
 </div>
 
 <meta charset="utf-8">
@@ -278,3 +401,23 @@ $expiring = $db->query("SELECT COUNT(*) as count FROM products_pharm WHERE expir
         pointer-events: none;
     }
 </style>
+
+<script>
+    // Add JavaScript to mark notifications as read
+    document.querySelectorAll('.mark-read').forEach(button => {
+        button.addEventListener('click', function () {
+            const notificationId = this.getAttribute('data-id');
+            fetch('mark_notification_read.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'id=' + notificationId
+            }).then(response => {
+                if (response.ok) {
+                    this.closest('.list-group-item').remove();
+                }
+            });
+        });
+    });
+</script>

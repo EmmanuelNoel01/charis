@@ -77,23 +77,23 @@ class Pharmacy
         return $this->db->query($sql, $params);
     }
 
-    public function getExpiringProducts($days = 30, $limit = 10, $offset = 0)
-    {
-        return $this->db->query('
-            SELECT * FROM products_pharm 
-            WHERE expiry_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? DAY)
-            ORDER BY expiry_date ASC
-        ', [$days]);
-    }
+    // public function getExpiringProducts($days = 30, $limit = 10, $offset = 0)
+    // {
+    //     return $this->db->query('
+    //         SELECT * FROM products_pharm 
+    //         WHERE expiry_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? DAY)
+    //         ORDER BY expiry_date ASC
+    //     ', [$days]);
+    // }
 
-    public function getLowStockProducts($limit = 10, $offset = 0)
-    {
-        return $this->db->query('
-            SELECT * FROM products_pharm 
-            WHERE quantity <= minimum_stock_level
-            ORDER BY quantity ASC
-        ');
-    }
+    // public function getLowStockProducts($limit = 10, $offset = 0)
+    // {
+    //     return $this->db->query('
+    //         SELECT * FROM products_pharm 
+    //         WHERE quantity <= minimum_stock_level
+    //         ORDER BY quantity ASC
+    //     ');
+    // }
     public function recordStockMovement($data)
     {
         $required = ['product_id', 'quantity', 'movement_type'];
@@ -582,20 +582,304 @@ class Pharmacy
         return $result[0]['total'] ?? 0;
     }
 
+    public function getExpiringProducts($search = '', $limit = 10, $offset = 0, $days = 30)
+{
+    $sql = '
+        SELECT * FROM products_pharm 
+        WHERE expiry_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? DAY)
+    ';
+    $params = [$days];
 
-    public function countExpiringProducts()
-    {
-        $threshold_date = date('Y-m-d', strtotime('+30 days'));
-        $result = $this->db->query("SELECT COUNT(*) as total FROM products_pharm WHERE expiry_date <= ?", [$threshold_date]);
-        return $result[0]['total'] ?? 0;
+    if (!empty($search)) {
+        $sql .= ' AND (name LIKE ? OR batch_number LIKE ? OR barcode LIKE ?)';
+        $searchTerm = "%$search%";
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
     }
-    public function countLowStockProducts()
-    {
-        $result = $this->db->query("SELECT COUNT(*) as total FROM products_pharm WHERE quantity <= minimum_stock_level");
-        return $result[0]['total'] ?? 0;
+
+    $sql .= ' ORDER BY expiry_date ASC';
+
+    if ($limit) {
+        $sql .= ' LIMIT ? OFFSET ?';
+        $params[] = $limit;
+        $params[] = $offset;
     }
 
+    return $this->db->query($sql, $params);
+}
 
+public function getLowStockProducts($search = '', $limit = 10, $offset = 0)
+{
+    $sql = '
+        SELECT * FROM products_pharm 
+        WHERE quantity <= minimum_stock_level
+    ';
+    $params = [];
+
+    if (!empty($search)) {
+        $sql .= ' AND (name LIKE ? OR batch_number LIKE ? OR barcode LIKE ?)';
+        $searchTerm = "%$search%";
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
+    }
+
+    $sql .= ' ORDER BY quantity ASC';
+
+    if ($limit) {
+        $sql .= ' LIMIT ? OFFSET ?';
+        $params[] = $limit;
+        $params[] = $offset;
+    }
+
+    return $this->db->query($sql, $params);
+}
+
+public function countExpiringProducts($search = '')
+{
+    $threshold_date = date('Y-m-d', strtotime('+30 days'));
+    $sql = "SELECT COUNT(*) as total FROM products_pharm WHERE expiry_date <= ?";
+    $params = [$threshold_date];
+
+    if (!empty($search)) {
+        $sql .= ' AND (name LIKE ? OR batch_number LIKE ? OR barcode LIKE ?)';
+        $searchTerm = "%$search%";
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
+    }
+
+    $result = $this->db->query($sql, $params);
+    return $result[0]['total'] ?? 0;
+}
+
+public function countLowStockProducts($search = '')
+{
+    $sql = "SELECT COUNT(*) as total FROM products_pharm WHERE quantity <= minimum_stock_level";
+    $params = [];
+
+    if (!empty($search)) {
+        $sql .= ' AND (name LIKE ? OR batch_number LIKE ? OR barcode LIKE ?)';
+        $searchTerm = "%$search%";
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
+        $params[] = $searchTerm;
+    }
+
+    $result = $this->db->query($sql, $params);
+    return $result[0]['total'] ?? 0;
+}
+
+
+// Add this function to your Pharmacy class or in the dashboard file
+public function getExpiringDrugsNotifications($db, $days_threshold = 30) {
+    $sql = "
+        SELECT name, batch_number, expiry_date, 
+               DATEDIFF(expiry_date, CURDATE()) as days_until_expiry
+        FROM products_pharm 
+        WHERE expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        AND quantity > 0
+        ORDER BY expiry_date ASC
+    ";
+    
+    $expiring_drugs = $db->query($sql, [$days_threshold]);
+    $notifications = [];
+    
+    foreach ($expiring_drugs as $drug) {
+        $days_left = $drug['days_until_expiry'];
+        
+        if ($days_left <= 7) {
+            $priority = 'high';
+            $title = "URGENT: Drug Expiring Soon";
+        } elseif ($days_left <= 15) {
+            $priority = 'medium';
+            $title = "Drug Expiring Soon";
+        } else {
+            $priority = 'low';
+            $title = "Drug Nearing Expiry";
+        }
+        
+        $notifications[] = [
+            'title' => $title,
+            'message' => "{$drug['name']} (Batch: {$drug['batch_number']}) expires in {$days_left} days on " . date('d/m/Y', strtotime($drug['expiry_date'])),
+            'priority' => $priority,
+            'days_left' => $days_left,
+            'drug_name' => $drug['name'],
+            'batch_number' => $drug['batch_number'],
+            'expiry_date' => $drug['expiry_date']
+        ];
+    }
+    
+    return $notifications;
+}
+
+// Also add low stock notifications
+public function getLowStockNotifications($db, $threshold_percentage = 20) {
+    $sql = "
+        SELECT name, batch_number, quantity, minimum_stock_level,
+               ROUND((quantity / minimum_stock_level) * 100) as stock_percentage
+        FROM products_pharm 
+        WHERE quantity > 0 AND quantity <= minimum_stock_level
+        ORDER BY quantity ASC
+    ";
+    
+    $low_stock_drugs = $db->query($sql);
+    $notifications = [];
+    
+    foreach ($low_stock_drugs as $drug) {
+        $stock_percentage = $drug['stock_percentage'];
+        
+        if ($stock_percentage <= 10) {
+            $priority = 'high';
+            $title = "CRITICAL: Very Low Stock";
+        } elseif ($stock_percentage <= 30) {
+            $priority = 'medium';
+            $title = "Low Stock Alert";
+        } else {
+            $priority = 'low';
+            $title = "Stock Running Low";
+        }
+        
+        $needed = $drug['minimum_stock_level'] - $drug['quantity'];
+        $notifications[] = [
+            'title' => $title,
+            'message' => "{$drug['name']} (Batch: {$drug['batch_number']}) has only {$drug['quantity']} units left. Minimum required: {$drug['minimum_stock_level']}",
+            'priority' => $priority,
+            'stock_percentage' => $stock_percentage,
+            'drug_name' => $drug['name'],
+            'current_stock' => $drug['quantity'],
+            'minimum_required' => $drug['minimum_stock_level'],
+            'needed' => $needed
+        ];
+    }
+    
+    return $notifications;
+}
+
+
+// Add this method to your Pharmacy class
+public function generateDrugNotifications() {
+    // Clear old notifications (older than 7 days)
+    $this->db->execute("DELETE FROM drug_notifications WHERE created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)");
+    
+    // Expiring drugs notifications
+    $expiring_drugs = $this->db->query("
+        SELECT name, batch_number, expiry_date, 
+               DATEDIFF(expiry_date, CURDATE()) as days_until_expiry
+        FROM products_pharm 
+        WHERE expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+        AND quantity > 0
+    ");
+    
+    foreach ($expiring_drugs as $drug) {
+        $days_left = $drug['days_until_expiry'];
+        $priority = $days_left <= 7 ? 'high' : ($days_left <= 15 ? 'medium' : 'low');
+        
+        $this->db->execute("
+            INSERT INTO drug_notifications (title, message, drug_name, batch_number, expiry_date, days_left, notification_type, priority)
+            VALUES (?, ?, ?, ?, ?, ?, 'expiry', ?)
+        ", [
+            "Drug Expiring in {$days_left} days",
+            "{$drug['name']} (Batch: {$drug['batch_number']}) will expire on " . date('d/m/Y', strtotime($drug['expiry_date'])),
+            $drug['name'],
+            $drug['batch_number'],
+            $drug['expiry_date'],
+            $days_left,
+            $priority
+        ]);
+    }
+    
+    // Low stock notifications
+    $low_stock_drugs = $this->db->query("
+        SELECT name, batch_number, quantity, minimum_stock_level
+        FROM products_pharm 
+        WHERE quantity > 0 AND quantity <= minimum_stock_level
+    ");
+    
+    foreach ($low_stock_drugs as $drug) {
+        $stock_percentage = round(($drug['quantity'] / $drug['minimum_stock_level']) * 100);
+        $priority = $stock_percentage <= 10 ? 'high' : ($stock_percentage <= 30 ? 'medium' : 'low');
+        
+        $this->db->execute("
+            INSERT INTO drug_notifications (title, message, drug_name, batch_number, current_stock, minimum_required, notification_type, priority)
+            VALUES (?, ?, ?, ?, ?, ?, 'low_stock', ?)
+        ", [
+            "Low Stock Alert - {$stock_percentage}%",
+            "{$drug['name']} (Batch: {$drug['batch_number']}) has only {$drug['quantity']} units left",
+            $drug['name'],
+            $drug['batch_number'],
+            $drug['quantity'],
+            $drug['minimum_stock_level'],
+            $priority
+        ]);
+    }
+    
+    return true;
+}
+
+// Also add a method to get notifications
+public function getDrugNotifications($limit = 20) {
+    return $this->db->query("
+        SELECT * FROM drug_notifications 
+        WHERE is_read = FALSE 
+        ORDER BY 
+            FIELD(priority, 'high', 'medium', 'low'),
+            created_at DESC
+        LIMIT ?
+    ", [$limit]);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // public function countExpiringProducts()
+    // {
+    //     $threshold_date = date('Y-m-d', strtotime('+30 days'));
+    //     $result = $this->db->query("SELECT COUNT(*) as total FROM products_pharm WHERE expiry_date <= ?", [$threshold_date]);
+    //     return $result[0]['total'] ?? 0;
+    // }
+    // public function countLowStockProducts()
+    // {
+    //     $result = $this->db->query("SELECT COUNT(*) as total FROM products_pharm WHERE quantity <= minimum_stock_level");
+    //     return $result[0]['total'] ?? 0;
+    // }
 
 
 }
