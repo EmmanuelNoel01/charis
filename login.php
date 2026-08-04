@@ -74,11 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 class="text-danger">*</span></label>
                         <div class="input-group">
                             <input type="password" class="form-control" id="password" name="password" required>
-                            <button type="button" class="btn btn-outline-secondary">
+                            <button type="button" class="btn btn-outline-secondary" id="togglePassword">
                                 <i class="ri-eye-line text-primary"></i></button>
                         </div>
                     </div>
-
                     <div class="mb-3 d-grid gap-2">
                         <button type="submit" class="btn btn-primary">Login</button>
                     </div>
@@ -87,5 +86,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </body>
+<script>
+    const togglePassword = document.querySelector('#togglePassword');
+    const password = document.querySelector('#password');
 
+    togglePassword.addEventListener('click', function (e) {
+        // toggle the type attribute
+        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+        password.setAttribute('type', type);
+        // toggle the eye slash icon
+        this.querySelector('i').classList.toggle('ri-eye-line');
+        this.querySelector('i').classList.toggle('ri-eye-off-line');
+    });
+
+</script>
 </html>

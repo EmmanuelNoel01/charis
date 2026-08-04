@@ -11,10 +11,36 @@ $invoice_number = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['search_invoice'])) {
     $invoice_number = trim($_POST['invoice_number']);
     if ($invoice_number !== '') {
+        // Pull from the audit/batches table. Every finalize on update_stock.php
+        // archives a batch row here keyed by invoice_number, so this list is
+        // never overwritten by a later re-stocking of the same product.
         $products = $db->fetchAll(
-            'SELECT * FROM products_pharm WHERE invoice_number = ? ORDER BY name ASC',
+            "SELECT
+                COALESCE(NULLIF(pb.name, ''), p.name) AS name,
+                pb.batch_number,
+                pb.buying_price,
+                pb.selling_price,
+                pb.expiry_date,
+                pb.quantity,
+                pb.unit_type,
+                pb.barcode,
+                pb.archived_at
+             FROM product_batches_pharm pb
+             LEFT JOIN products_pharm p ON p.id = pb.product_id
+             WHERE pb.invoice_number = ?
+             ORDER BY name ASC",
             [$invoice_number]
         );
+
+        // Fallback: older receipts saved before this update may still only be
+        // findable on the live products table.
+        if (!$products) {
+            $products = $db->fetchAll(
+                'SELECT name, batch_number, buying_price, selling_price, expiry_date, quantity, unit_type, barcode
+                 FROM products_pharm WHERE invoice_number = ? ORDER BY name ASC',
+                [$invoice_number]
+            );
+        }
 
         if (!$products) {
             $_SESSION['error'] = "No products found for invoice number: $invoice_number";

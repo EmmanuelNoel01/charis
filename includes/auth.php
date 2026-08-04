@@ -3,18 +3,36 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$timeout_duration = 900; 
+// All dates in this app use Africa/Kampala. Setting it once here keeps PHP
+// and the rendered pages consistent regardless of the server's locale.
+date_default_timezone_set('Africa/Kampala');
+
+/**
+ * Detect the install base URL automatically so the app works no matter
+ * which folder it is hosted in (/pharmacy_system/, /pharmacy/, web root, etc.).
+ */
+if (!function_exists('base_url')) {
+    function base_url($path = '') {
+        $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+        $base = preg_replace('#/(includes|system|classes|fpdf|invoices)(/.*)?$#', '', $script);
+        $base = preg_replace('#/[^/]+\.php$#', '', $base);
+        $base = rtrim($base, '/');
+        return $base . ($path !== '' ? '/' . ltrim($path, '/') : '');
+    }
+}
+
+$timeout_duration = 1800; // 30 minutes
 
 if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > $timeout_duration) {
     session_unset();
     session_destroy();
-    header("Location: /pharmacy_system/login.php?timeout=1");
+    header("Location: " . base_url('login.php?timeout=1'));
     exit();
 }
 
 $_SESSION['last_activity'] = time();
 
-require_once 'db.php';
+require_once __DIR__ . '/db.php';
 
 class Auth {
     private $db;
@@ -83,7 +101,7 @@ public function login($username, $password) {
 
     public function logout() {
         session_destroy();
-        header("Location: /pharmacy_system/login.php");
+        header("Location: " . base_url('login.php'));
         exit();
     }
 
@@ -144,7 +162,7 @@ function requireLogin() {
     if (!$auth->isLoggedIn()) {
         $_SESSION['redirect_url'] = $_SERVER['REQUEST_URI'];
         $_SESSION['error'] = "Please login to access this page";
-        header("Location: /pharmacy_system/login.php");
+        header("Location: " . base_url('login.php'));
         exit();
     }
 }

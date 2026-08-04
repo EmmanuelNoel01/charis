@@ -155,6 +155,13 @@ ob_end_flush();
 </div>
 
 <script>
+    // Stop mouse-wheel from changing focused number inputs
+    document.addEventListener('wheel', function (e) {
+        if (document.activeElement && document.activeElement.type === 'number') {
+            document.activeElement.blur();
+        }
+    }, { passive: true });
+
     let counter = <?= count($sale_items) ?>;
     const products = <?= json_encode($products) ?>;
 
@@ -176,20 +183,21 @@ ob_end_flush();
             </div>
         </div>
         <div class="col-md-4">
-            <input type="number" name="products[${counter}][quantity]" class="form-control" min="0.1" step="0.1" required>
+            <input type="number" name="products[${counter}][quantity]" class="form-control" min="0.1" step="0.1" required onwheel="this.blur()">
         </div>
         <div class="col-md-2">
             <button type="button" class="btn btn-danger remove-row">X</button>
         </div>
-    `;
+        `;
         document.getElementById('productList').appendChild(row);
         counter++;
     });
 
+    // Event delegation so handlers survive DOM mutations (e.g. after the date changes)
     document.addEventListener('focus', (e) => {
-        if (e.target.classList.contains('product-input')) {
-            const dropdown = e.target.closest('.dropdown').querySelector('.dropdown-content');
-            dropdown.classList.add('show');
+        if (e.target.classList && e.target.classList.contains('product-input')) {
+            const dd = e.target.closest('.dropdown');
+            if (dd) dd.querySelector('.dropdown-content').classList.add('show');
         }
     }, true);
 
@@ -197,41 +205,32 @@ ob_end_flush();
         if (!e.target.matches('.product-input')) {
             document.querySelectorAll('.dropdown-content').forEach(dd => dd.classList.remove('show'));
         }
-    });
-
-    document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('product-option')) {
+        if (e.target.classList && e.target.classList.contains('product-option')) {
             const dropdown = e.target.closest('.dropdown');
             const input = dropdown.querySelector('.product-input');
             const hiddenInput = dropdown.querySelector('input[type="hidden"]');
-
             input.value = e.target.dataset.name;
             hiddenInput.value = e.target.dataset.id;
-
             dropdown.querySelector('.dropdown-content').classList.remove('show');
         }
-    });
-
-    document.addEventListener('click', function (e) {
-        if (e.target && e.target.classList.contains('remove-row')) {
+        if (e.target && e.target.classList && e.target.classList.contains('remove-row')) {
             e.target.closest('.product-row').remove();
         }
     });
 
-    //INOVICE Date
-    <script>
+    // Default the invoice-date input if it's empty
+    (function () {
         const dateInput = document.getElementById('invoiceDate');
-        if (!dateInput.value) {
-        const now = new Date();
-        const formatted = now.getFullYear() + '-' +
-        String(now.getMonth() + 1).padStart(2, '0') + '-' +
-        String(now.getDate()).padStart(2, '0') + 'T' +
-        String(now.getHours()).padStart(2, '0') + ':' +
-        String(now.getMinutes()).padStart(2, '0');
-        dateInput.value = formatted;
-    }
-</script>
-
+        if (dateInput && !dateInput.value) {
+            const now = new Date();
+            const f = now.getFullYear() + '-' +
+                String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                String(now.getDate()).padStart(2, '0') + 'T' +
+                String(now.getHours()).padStart(2, '0') + ':' +
+                String(now.getMinutes()).padStart(2, '0');
+            dateInput.value = f;
+        }
+    })();
 </script>
 
 <style>

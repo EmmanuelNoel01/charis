@@ -558,11 +558,102 @@ class Pharmacy
         }
     }
 
+    /**
+     * Total stock for a product across the live products_pharm row plus
+     * every product_batches_pharm row marked is_active. This is the
+     * "real" available quantity the cashier can sell.
+     */
     public function getTotalProductQuantity($product_id)
     {
-        $sql = 'SELECT SUM(quantity) AS total_qty FROM product_batches_pharm WHERE product_id = ?';
-        $result = $this->db->query($sql, [$product_id]);
-        return $result[0]['total_qty'] ?? 0;
+        $live = $this->db->fetchOne(
+            "SELECT COALESCE(quantity, 0) AS q FROM products_pharm WHERE id = ?",
+            [$product_id]
+        );
+        $arch = $this->db->fetchOne(
+            "SELECT COALESCE(SUM(quantity), 0) AS q
+             FROM product_batches_pharm
+             WHERE product_id = ? AND is_active = 1 AND quantity > 0",
+            [$product_id]
+        );
+        return (float)($live['q'] ?? 0) + (float)($arch['q'] ?? 0);
+    }
+
+    /**
+     * Deduct `$quantity` from a product using FEFO across active batches
+     * first (earliest expiry first), then the live products_pharm row.
+     *
+     * Throws Exception with a clear message if total stock is insufficient.
+     * Must be called inside a transaction by the caller.
+     *
+     * Returns true on success.
+     */
+    public function deductStockFEFO($product_id, $quantity)
+    {
+        $quantity = (float) $quantity;
+        if ($quantity <= 0) {
+            throw new Exception('Quantity to deduct must be greater than zero.');
+        }
+
+        $product = $this->db->fetchOne("SELECT id, name, quantity FROM products_pharm WHERE id = ?", [$product_id]);
+        if (!$product) {
+            throw new Exception("Product id $product_id not found.");
+        }
+
+        // Hard reject if there isn't enough total stock anywhere.
+        $available = $this->getTotalProductQuantity($product_id);
+        if ($quantity > $available) {
+            throw new Exception(
+                sprintf('Only %s available for %s — cannot sell %s.',
+                    rtrim(rtrim(number_format($available, 2), '0'), '.'),
+                    $product['name'],
+                    rtrim(rtrim(number_format($quantity, 2), '0'), '.')
+                )
+            );
+        }
+
+        $remaining = $quantity;
+
+        // 1) Walk active archived batches FEFO (earliest expiry first).
+        //    NULL expiry sorts last so dated batches sell before "unknown" expiry.
+        $batches = $this->db->fetchAll(
+            "SELECT id, quantity, expiry_date
+             FROM product_batches_pharm
+             WHERE product_id = ? AND is_active = 1 AND quantity > 0
+             ORDER BY (expiry_date IS NULL), expiry_date ASC, archived_at ASC, id ASC",
+            [$product_id]
+        );
+        foreach ($batches as $b) {
+            if ($remaining <= 0) break;
+            $take = min((float)$b['quantity'], $remaining);
+            $new_qty = (float)$b['quantity'] - $take;
+            // Deactivate when exhausted; the row stays for audit.
+            $this->db->execute(
+                "UPDATE product_batches_pharm
+                 SET quantity = ?, is_active = CASE WHEN ? <= 0 THEN 0 ELSE 1 END
+                 WHERE id = ?",
+                [$new_qty, $new_qty, $b['id']]
+            );
+            $remaining -= $take;
+        }
+
+        // 2) Any remainder comes from the live row.
+        if ($remaining > 0) {
+            $take = min((float)$product['quantity'], $remaining);
+            $this->db->execute(
+                "UPDATE products_pharm SET quantity = quantity - ? WHERE id = ? AND quantity >= ?",
+                [$take, $product_id, $take]
+            );
+            $remaining -= $take;
+        }
+
+        // Sanity check — should be zero if we calculated available correctly
+        // and the CHECK constraints didn't reject anything.
+        if ($remaining > 0.0001) {
+            throw new Exception('Stock deduction failed: remainder ' . $remaining
+                . ' could not be allocated. Stock state may be inconsistent.');
+        }
+
+        return true;
     }
 
     public function findProductByName($name)

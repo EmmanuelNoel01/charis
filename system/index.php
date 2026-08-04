@@ -161,7 +161,7 @@ $low_priority = $db->query("SELECT COUNT(*) as count FROM drug_notifications WHE
                         </div>
                     </div>
                     <div class="d-flex align-items-end justify-content-between mt-1">
-                        <a class="text-primary" href="/pharmacy_system/system/balance_sheet.php">
+                        <a class="text-primary" href="<?= base_url('system/balance_sheet.php') ?>">
                             <span>View</span>
                             <i class="ri-arrow-right-line ms-1"></i>
                         </a>
@@ -192,7 +192,7 @@ $low_priority = $db->query("SELECT COUNT(*) as count FROM drug_notifications WHE
                         </div>
                     </div>
                     <div class="d-flex align-items-end justify-content-between mt-1">
-                        <a class="text-warning" href="/pharmacy_system/system/sales.php">
+                        <a class="text-warning" href="<?= base_url('system/sales.php') ?>">
                             <span>View All</span>
                             <i class="ri-arrow-right-line ms-1"></i>
                         </a>
@@ -249,102 +249,90 @@ $low_priority = $db->query("SELECT COUNT(*) as count FROM drug_notifications WHE
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Drug Alerts</h5>
-                    <?php if (count($notifications) > 0): ?>
-                        <span class="badge bg-danger"><?= count($notifications) ?></span>
-                    <?php endif; ?>
-                </div>
-                <div class="card-body p-0">
-                    <?php if (count($notifications)): ?>
-                        <div class="list-group list-group-flush">
-                            <?php foreach ($notifications as $notification): ?>
-                                <div class="list-group-item <?=
-                                    $notification['priority'] === 'high' ? 'list-group-item-danger' :
-                                    ($notification['priority'] === 'medium' ? 'list-group-item-warning' : 'list-group-item-info')
-                                    ?>">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1">
-                                                <?php if ($notification['priority'] === 'high'): ?>
-                                                    <i class="fas fa-exclamation-triangle text-danger"></i>
-                                                <?php elseif ($notification['priority'] === 'medium'): ?>
-                                                    <i class="fas fa-exclamation-circle text-warning"></i>
-                                                <?php else: ?>
-                                                    <i class="fas fa-info-circle text-info"></i>
-                                                <?php endif; ?>
-                                                <?= htmlspecialchars($notification['title']) ?>
-                                            </h6>
-                                            <p class="mb-1 small"><?= htmlspecialchars($notification['message']) ?></p>
+<div class="card-body">
+    <?php if (count($notifications)): ?>
 
-                                            <?php if ($notification['notification_type'] === 'expiry' && $notification['days_left']): ?>
-                                                <div class="mt-2">
-                                                    <small class="text-muted">
-                                                        <strong>Days until expiry:</strong>
-                                                        <span
-                                                            class="<?= $notification['days_left'] <= 7 ? 'text-danger fw-bold' : 'text-warning' ?>">
-                                                            <?= $notification['days_left'] ?> days
-                                                        </span>
-                                                    </small>
-                                                </div>
-                                            <?php endif; ?>
+        <div id="notificationStack" class="notification-stack">
 
-                                            <?php if ($notification['notification_type'] === 'low_stock' && $notification['current_stock']): ?>
-                                                <div class="mt-2">
-                                                    <small class="text-muted">
-                                                        <strong>Stock level:</strong>
-                                                        <span
-                                                            class="<?= $notification['current_stock'] <= ($notification['minimum_required'] * 0.1) ? 'text-danger fw-bold' : 'text-warning' ?>">
-                                                            <?= $notification['current_stock'] ?>/<?= $notification['minimum_required'] ?>
-                                                        </span>
-                                                    </small>
-                                                </div>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="ms-2">
-                                            <a href="products.php?tab=<?= $notification['notification_type'] === 'expiry' ? 'expiring' : 'low' ?>"
-                                                class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <button class="btn btn-sm btn-outline-secondary mark-read"
-                                                data-id="<?= $notification['id'] ?>">
-                                                <i class="fas fa-check"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php else: ?>
-                        <div class="text-center p-4">
-                            <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
-                            <p class="text-muted mb-0">All drugs are properly stocked</p>
-                            <p class="text-muted small">No expiring or low stock alerts</p>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <?php if (count($notifications) > 0): ?>
-                    <div class="card-footer bg-light">
-                        <div class="row text-center">
-                            <div class="col-4">
-                                <span class="badge bg-danger"><?= $high_priority ?></span>
-                                <small class="text-muted d-block">Critical</small>
+            <?php foreach ($notifications as $index => $notification): ?>
+
+                <div class="alert-card shadow
+                    <?= $notification['priority'] === 'high' ? 'border-danger' :
+                        ($notification['priority'] === 'medium' ? 'border-warning' : 'border-info') ?>"
+                    data-id="<?= $notification['id'] ?>"
+                    style="z-index: <?= count($notifications)-$index ?>">
+
+                    <div class="card-body">
+
+                        <div class="d-flex justify-content-between">
+
+                            <div class="flex-grow-1">
+
+                                <h5>
+                                    <?php if ($notification['priority'] === 'high'): ?>
+                                        <i class="fas fa-exclamation-triangle text-danger"></i>
+                                    <?php elseif ($notification['priority'] === 'medium'): ?>
+                                        <i class="fas fa-exclamation-circle text-warning"></i>
+                                    <?php else: ?>
+                                        <i class="fas fa-info-circle text-info"></i>
+                                    <?php endif; ?>
+
+                                    <?= htmlspecialchars($notification['title']) ?>
+                                </h5>
+
+                                <p><?= htmlspecialchars($notification['message']) ?></p>
+
+                                <?php if ($notification['notification_type'] === 'expiry'): ?>
+
+                                    <span class="badge bg-danger">
+                                        <?= $notification['days_left'] ?> days left
+                                    </span>
+
+                                <?php endif; ?>
+
+                                <?php if ($notification['notification_type'] === 'low_stock'): ?>
+
+                                    <span class="badge bg-warning text-dark">
+                                        <?= $notification['current_stock'] ?>/<?= $notification['minimum_required'] ?>
+                                    </span>
+
+                                <?php endif; ?>
+
                             </div>
-                            <div class="col-4">
-                                <span class="badge bg-warning"><?= $medium_priority ?></span>
-                                <small class="text-muted d-block">Warning</small>
+
+                            <div class="ms-3">
+
+                                <a href="products.php?tab=<?= $notification['notification_type']=='expiry'?'expiring':'low' ?>"
+                                    class="btn btn-outline-primary btn-sm mb-2">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+
+                                <button class="btn btn-success btn-sm dismiss-card"
+                                    data-id="<?= $notification['id'] ?>">
+                                    <i class="fas fa-check"></i>
+                                </button>
+
                             </div>
-                            <div class="col-4">
-                                <span class="badge bg-info"><?= $low_priority ?></span>
-                                <small class="text-muted d-block">Info</small>
-                            </div>
+
                         </div>
+
                     </div>
-                <?php endif; ?>
-            </div>
+
+                </div>
+
+            <?php endforeach; ?>
+
         </div>
+
+    <?php else: ?>
+
+        <div class="text-center p-4">
+            <i class="fas fa-check-circle text-success fa-2x"></i>
+            <p class="mt-2">No alerts.</p>
+        </div>
+
+    <?php endif; ?>
+</div>
     </div>
 </div>
 </div>
@@ -361,6 +349,40 @@ $low_priority = $db->query("SELECT COUNT(*) as count FROM drug_notifications WHE
 <link rel="stylesheet" href="assets/css/main.min.css">
 
 <link rel="stylesheet" href="assets/vendor/overlay-scroll/OverlayScrollbars.min.css">
+<style>
+    .notification-stack{
+    position:relative;
+    height:330px;
+    overflow:hidden;
+}
+
+.alert-card{
+    position:absolute;
+    width:100%;
+    cursor:grab;
+    border-radius:15px;
+    background:#fff;
+    transition:.35s;
+    user-select:none;
+}
+
+.alert-card:nth-child(1){
+    transform:translateY(0) scale(1);
+}
+
+.alert-card:nth-child(2){
+    transform:translateY(10px) scale(.98);
+}
+
+.alert-card:nth-child(3){
+    transform:translateY(20px) scale(.96);
+}
+
+.alert-card:nth-child(n+4){
+    transform:translateY(30px) scale(.94);
+    opacity:.4;
+}
+</style>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         setTimeout(function () {
@@ -420,4 +442,92 @@ $low_priority = $db->query("SELECT COUNT(*) as count FROM drug_notifications WHE
             });
         });
     });
+
+    const stack = document.getElementById("notificationStack");
+
+let cards = document.querySelectorAll(".alert-card");
+
+cards.forEach(makeSwipeable);
+
+function makeSwipeable(card){
+
+    let startX = 0;
+    let currentX = 0;
+    let dragging = false;
+
+    card.addEventListener("pointerdown", e=>{
+        dragging=true;
+        startX=e.clientX;
+        card.style.transition="none";
+    });
+
+    window.addEventListener("pointermove", e=>{
+        if(!dragging) return;
+
+        currentX=e.clientX-startX;
+
+        card.style.transform=
+            `translateX(${currentX}px) rotate(${currentX/15}deg)`;
+    });
+
+    window.addEventListener("pointerup", ()=>{
+
+        if(!dragging) return;
+
+        dragging=false;
+
+        card.style.transition=".3s";
+
+        if(Math.abs(currentX)>120){
+
+            card.style.transform=
+                `translateX(${currentX>0?700:-700}px)
+                 rotate(${currentX/10}deg)`;
+
+            setTimeout(()=>{
+
+                card.remove();
+
+                updateStack();
+
+            },300);
+
+        }else{
+
+            card.style.transform="";
+
+        }
+
+        currentX=0;
+
+    });
+
+}
+
+function updateStack(){
+
+    document.querySelectorAll(".alert-card").forEach((card,index)=>{
+
+        card.style.zIndex=100-index;
+
+        if(index===0){
+            card.style.transform="translateY(0) scale(1)";
+            card.style.opacity=1;
+        }
+        else if(index===1){
+            card.style.transform="translateY(10px) scale(.98)";
+            card.style.opacity=1;
+        }
+        else if(index===2){
+            card.style.transform="translateY(20px) scale(.96)";
+            card.style.opacity=1;
+        }
+        else{
+            card.style.transform="translateY(30px) scale(.94)";
+            card.style.opacity=.4;
+        }
+
+    });
+
+}
 </script>

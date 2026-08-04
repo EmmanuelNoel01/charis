@@ -1,5 +1,5 @@
 <?php
-require_once 'auth.php';
+require_once __DIR__ . '/auth.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -71,35 +71,42 @@ require_once 'auth.php';
         <ul class="nav nav-pills flex-column mb-auto">
           <li>
             <a
-              href="/pharmacy_system/system/index.php"
+              href="<?= base_url('system/index.php') ?>"
               class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active-link' : '' ?>"
               ><i class="fa-solid fa-gauge"></i> Dashboard</a
             >
           </li>
           <li>
             <a
-              href="/pharmacy_system/system/sales.php"
+              href="<?= base_url('system/sales.php') ?>"
               class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'sales.php' ? 'active-link' : '' ?>"
               ><i class="fa-solid fa-cart-shopping"></i> Sales</a
             >
           </li>
           <li>
             <a
-              href="/pharmacy_system/system/products.php"
+              href="<?= base_url('system/customers.php') ?>"
+              class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'customers.php' ? 'active-link' : '' ?>"
+              ><i class="fa-solid fa-users"></i> Customers</a
+            >
+          </li>
+          <li>
+            <a
+              href="<?= base_url('system/products.php') ?>"
               class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'products.php' ? 'active-link' : '' ?>"
               ><i class="fa-solid fa-box"></i> Products</a
             >
           </li>
           <li>
             <a
-              href="/pharmacy_system/system/update_stock.php"
+              href="<?= base_url('system/update_stock.php') ?>"
               class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'update_stock.php' ? 'active-link' : '' ?>"
               ><i class="fa-solid fa-arrow-up-right-from-square"></i> Update Stock</a
             >
           </li>
             <li>
               <a
-                href="/pharmacy_system/system/expenditures.php"
+                href="<?= base_url('system/expenditures.php') ?>"
                 class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'expenditures.php' ? 'active-link' : '' ?>"
                 ><i class="fa-solid fa-file-invoice-dollar"></i> Expenditure</a
               >
@@ -107,21 +114,21 @@ require_once 'auth.php';
           <?php if ($auth->isAdmin()): ?>
           <li>
             <a
-              href="/pharmacy_system/system/view_invoice.php"
+              href="<?= base_url('system/view_invoice.php') ?>"
               class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'view_invoice.php' ? 'active-link' : '' ?>"
               ><i class="fa-solid fa-receipt"></i>Products On Invoice</a
             >
           </li>
             <li>
               <a
-                href="/pharmacy_system/system/admin.php"
+                href="<?= base_url('system/admin.php') ?>"
                 class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'admin.php' ? 'active-link' : '' ?>"
                 ><i class="fa-solid fa-user-shield"></i> Admin Role</a
               >
             </li>
             <li>
               <a
-                href="/pharmacy_system/system/reports.php"
+                href="<?= base_url('system/reports.php') ?>"
                 class="nav-link <?= basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'active-link' : '' ?>"
                 ><i class="fa-solid fa-chart-line"></i> Reports</a
               >

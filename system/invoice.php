@@ -1,13 +1,20 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+?>
+<?php
 ob_start();
 require_once '../includes/header.php';
 require_once '../includes/functions.php';
 require_once '../classes/PDF.php';
+require_once '../classes/Pharmacy.php';
 requireLogin();
 
 $dbConn = $db->getConnection();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['invoice'])) {
+    $customer_id   = isset($_POST['customer_id']) && $_POST['customer_id'] !== '' ? (int) $_POST['customer_id'] : null;
     $customer_name = $_POST['customer_name'] ?? 'Walk-in Customer';
     $payment_method = $_POST['payment_method'] ?? 'cash';
     $transaction_id = $_POST['transaction_id'] ?? '';
@@ -22,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['invoice'])) {
     try {
         $user_id = $_SESSION['user_id'];
         $invoice_number = 'CHARIS-' . time();
+        // Use the SERVER's time, with the Africa/Kampala timezone set in auth.php
         $date = date('Y-m-d H:i:s');
         $total_amount = 0;
 
@@ -31,7 +39,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['invoice'])) {
             $total_amount += $price * $quantity;
         }
 
-        // Prepare sale data with transaction_id
         $sale_data = [
             "user_id" => $user_id,
             "customer_name" => $customer_name,
@@ -40,11 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['invoice'])) {
             "total_amount" => $total_amount,
             "date" => $date
         ];
-
-        // Add transaction_id only if it's not empty
-        if (!empty($transaction_id)) {
-            $sale_data["transaction_id"] = $transaction_id;
-        }
+        if ($customer_id) $sale_data["customer_id"] = $customer_id;
+        if (!empty($transaction_id)) $sale_data["transaction_id"] = $transaction_id;
 
         $sale_id = $db->insert("sales_pharm", $sale_data);
 
@@ -62,28 +66,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['invoice'])) {
                 "total" => $total
             ]);
 
-            // Get current quantity from the database
-            $dBQuantity = $db->query("SELECT name, quantity FROM products_pharm WHERE id = ?", [$product_id])[0] ?? null;
-            $productName = $dBQuantity['name'] ?? 'Unknown Product';
-            $availableQty = $dBQuantity['quantity'] ?? 0;
-
-            if (!$dBQuantity || $dBQuantity['quantity'] < $quantity) {
-                // Redirect if insufficient stocknewpage.php
+            // FEFO deduction: archived (active) batches first by earliest expiry,
+            // then the live products_pharm row. Throws on insufficient stock.
+            if (!isset($pharmacy_helper)) {
+                $pharmacy_helper = new Pharmacy($db);
+            }
+            try {
+                $pharmacy_helper->deductStockFEFO($product_id, $quantity);
+            } catch (Exception $e) {
+                // Roll back and show the user a clear, actionable message.
+                $db->rollback();
+                $msg = htmlspecialchars($e->getMessage(), ENT_QUOTES);
                 echo "<script>
-                    alert('You don\\'t have enough in stock for {$productName}. You have {$availableQty} left and you are trying to sell {$quantity}.');
+                    alert('Sale rejected: {$msg}');
                     window.history.back();
                 </script>";
                 exit();
-            }
-            else {
-                // Update quantity
-                $db->rawQuery("UPDATE products_pharm SET quantity = quantity - $quantity WHERE id = $product_id");
             }
 
 
         }
 
         $db->commit();
+
+        // Successful sale: clear the "in-progress" sticky panel state from sales.php
+        unset(
+            $_SESSION['sale_invoice_customer_id'],
+            $_SESSION['sale_invoice_customer_name'],
+            $_SESSION['sale_invoice_started_at']
+        );
 
         header("Location: invoice.php?id=$sale_id");
         exit();
@@ -164,7 +175,8 @@ ob_end_flush();
             <div class="col-md-6 text-end">
                 <p>
                     Invoice:  <?= htmlspecialchars($sale['invoice_number']) ?><br>
-                    Date: <span id="saleDate"></span><br>
+                    <!-- Date is rendered from PHP using the actual sale date, so it is correct online or offline -->
+                    Date: <?= date('d/m/Y H:i', strtotime($sale['date'])) ?><br>
                     Pharmacist: <?= htmlspecialchars($sale['username']) ?>
                 </p>
             </div>
@@ -240,14 +252,4 @@ ob_end_flush();
             window.location.href = 'sales.php';
         }, 2000);
     });
-
-    //USED TO GET THE DATE FOR THE INVOICE
-    const now = new Date();
-    const formatted = String(now.getDate()).padStart(2, '0') + '/' +
-        String(now.getMonth() + 1).padStart(2, '0') + '/' +
-        now.getFullYear() + ' ' +
-        String(now.getHours()).padStart(2, '0') + ':' +
-        String(now.getMinutes()).padStart(2, '0');
-
-    document.getElementById('saleDate').textContent = formatted;
 </script>

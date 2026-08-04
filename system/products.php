@@ -33,7 +33,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (isset($_POST['update_product'])) {
         try {
             $product_id = (int) $_POST['product_id'];
-            $pharmacy->updateProduct($product_id, [
+            $reason     = trim($_POST['edit_reason'] ?? '');
+
+            if ($reason === '') {
+                throw new Exception('You must provide a reason before saving an edit to a product.');
+            }
+
+            // Snapshot the BEFORE values so we can log per-field changes.
+            $before = $db->fetchOne("SELECT * FROM products_pharm WHERE id = ?", [$product_id]) ?: [];
+
+            $newData = [
                 'name' => $_POST['name'],
                 'description' => $_POST['description'],
                 'batch_number' => $_POST['batch_number'],
@@ -44,7 +53,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'minimum_stock_level' => (int) $_POST['minimum_stock_level'],
                 'barcode' => $_POST['barcode'] ?? null,
                 'unit_type' => $_POST['unit_type']
-            ]);
+            ];
+
+            $pharmacy->updateProduct($product_id, $newData);
+
+            // Write one audit row per changed field.
+            $user_id = $_SESSION['user_id'] ?? null;
+            foreach ($newData as $field => $newVal) {
+                $oldVal = $before[$field] ?? null;
+                if ((string)$oldVal !== (string)$newVal) {
+                    $db->insert('product_edit_log_pharm', [
+                        'product_id' => $product_id,
+                        'user_id'    => $user_id,
+                        'field_name' => $field,
+                        'old_value'  => (string)$oldVal,
+                        'new_value'  => (string)$newVal,
+                        'reason'     => $reason
+                    ]);
+                }
+            }
 
             $_SESSION['message'] = 'Product updated successfully!';
             header("Location: products.php?action=view&id=$product_id");
@@ -547,6 +574,15 @@ ob_end_flush();
                         <option value="scht" <?= $p['unit_type'] === 'scht' ? 'selected' : '' ?>>Sachet</option>
                     </select>
                 </div>
+
+                <?php if ($editing): ?>
+                <div class="mb-3">
+                    <label class="form-label">Reason for edit <span class="text-danger">*</span></label>
+                    <textarea name="edit_reason" class="form-control" rows="2" required
+                              placeholder="e.g. Correcting wrong selling price; price quoted by supplier was wrong"></textarea>
+                    <small class="text-muted">Every change to this product will be logged together with this reason.</small>
+                </div>
+                <?php endif; ?>
 
                 <button type="submit" name="<?= $editing ? 'update_product' : 'add_product' ?>" class="btn btn-primary">
                     <?= $editing ? 'Update' : 'Add' ?> Product
