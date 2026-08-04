@@ -6,7 +6,7 @@ echo "Starting Git upload..."
 git add .
 
 # Commit with current date/time
-git commit -m "Auto update the repo latest update as of $(date '+%Y-%m-%d %H:%M:%S')"
+git commit -m "Auto update the repo latest update as of $(date '+%Y-%m-%d %H:%M')"
 
 # Push to GitHub
 git push origin main
