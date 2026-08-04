@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // toggle the type attribute
         const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
         password.setAttribute('type', type);
-        // toggle the eye slash icon
+
         this.querySelector('i').classList.toggle('ri-eye-line');
         this.querySelector('i').classList.toggle('ri-eye-off-line');
     });
