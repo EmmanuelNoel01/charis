@@ -4,14 +4,14 @@ PROJECT="/Applications/XAMPP/xamppfiles/htdocs/charis"
 
 cd "$PROJECT"
 
-echo "Git watcher started..."
-
-fswatch -o "$PROJECT" | while read change
+fswatch -o \
+--exclude "\.git" \
+--exclude "gitwatch.sh" \
+--exclude "gitwatch.log" \
+--exclude "push.sh" \
+"$PROJECT" | while read change
 do
-    # Check if there are actual Git changes
     if [[ -n $(git status --porcelain) ]]; then
-        ./push.sh
-    else
-        echo "No changes detected"
+        ./push.sh >> gitwatch.log 2>&1
     fi
 done
